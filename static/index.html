@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>PDF Проверка</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>Проверка PDF документа</h1>
+
+    <input type="file" id="fileInput" accept="application/pdf">
+
+    <button id="uploadBtn">Загрузить и проверить</button>
+
+    <a id="downloadBtn" href="/download" style="display:none;" download>
+        Скачать проверенный PDF
+    </a>
+
+    <div id="status"></div>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
