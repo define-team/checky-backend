@@ -24,6 +24,32 @@ IMG_CENTER_TOL_PT = 15    # картинка считается центриро
 LIGHT_FILL_LEFT = (1, 0.9, 0.9)  # светло-розовая для области левого отступа
 LIGHT_FILL_RIGHT = (0.95, 0.95, 1) # светло-голубая для правых проблем
 
+# допустимый отступ для "красной строки" (1.25 см)
+FIRST_LINE_INDENT_CM = 1.25
+FIRST_LINE_INDENT_PT = FIRST_LINE_INDENT_CM * CM_TO_POINTS
+
+# минимальная длина строки в которой имеет смысл проверять левый отступ (2 см)
+MIN_LEN_FOR_LEFT_CHECK_PT = 2.0 * CM_TO_POINTS
+
+# распознаём маркеры списка (точки, тире, многоточия, цифра с точкой/скобкой, буква + ')' и пр.)
+import re
+_marker_re = re.compile(r"""^(
+    [\u2022\u2023\-\–\—\*·]+ |    # bullets/dashes
+    \d+[\.\)] |                   # 1.  or 1)
+    [a-zA-Z]\)                    # a)
+    )$""", re.X)
+
+def is_marker_token(tok: str) -> bool:
+    t = tok.strip()
+    if not t:
+        return False
+    # если только 1-3 символа и не буквы/цифры — часто маркер
+    if len(t) <= 3 and all(not ch.isalnum() for ch in t):
+        return True
+    # проверка на шаблон: "•", "-", "--", "1.", "a)" и т.п.
+    if _marker_re.match(t):
+        return True
+    return False
 
 # ---- Вспомогательные ----
 def int_to_rgb(color_int):
@@ -245,18 +271,85 @@ def process_pdf(input_bytes: bytes) -> bytes:
                 treat_right = not is_bold_heading
 
                 # --- левый отступ для абзаца ---
+                # --- вычислим среднюю длину строк абзаца (для решения по спискам) ---
+                line_lengths = []
+                for ln in par:
+                    spans = [s for s in ln.get("spans", []) if s.get("text", "").strip()]
+                    if not spans:
+                        continue
+                    left_l = min(s["bbox"][0] for s in spans)
+                    right_l = max(s["bbox"][2] for s in spans)
+                    line_lengths.append(right_l - left_l)
+                avg_line_len = statistics.median(line_lengths) if line_lengths else 0
+
+                # --- левый отступ для абзаца ---
+                # --- НОВЫЙ алгоритм проверки левого отступа ---
                 left_issue = False
-                # Для списков допускаем табуляцию (если left_x > LEFT_MARGIN) — это ожидаемо
-                if not is_list:
-                    if left_x is not None and abs(left_x - LEFT_MARGIN) > LEFT_TOL_PT:
+
+                first_line_text = span_text_from_line(par[0])
+                first_char = first_line_text.strip()[0] if first_line_text.strip() else ""
+
+                # вычисляем левый край первой строки
+                first_spans = [s for s in par[0].get("spans", []) if s.get("text", "").strip()]
+                first_left = min(s["bbox"][0] for s in first_spans) if first_spans else None
+
+                # обычный левый край абзаца (по медиане)
+                if left_x is None:
+                    left_x = LEFT_MARGIN
+
+                is_heading = is_bold_heading
+                is_image_caption = first_char == "Р"
+
+                # --- 1) Заголовки ---
+                if is_heading:
+                    left_issue = False
+
+                # --- 2) Подписи под рисунками ---
+                elif is_image_caption:
+                    left_issue = False
+
+                # --- 3) Начало абзаца: большая буква + отступ ~1.25 см ---
+                elif first_char.isupper():
+                    if abs((first_left - LEFT_MARGIN) - FIRST_LINE_INDENT_PT) <= 12:
+                        left_issue = False
+                    else:
                         left_issue = True
 
+                # --- 4) Обычные строки абзаца — ЗАПРЕЩЕНО отличаться от 3 см ---
+                else:
+                    # если строка НЕ заканчивает абзац
+                    last_char = first_line_text.strip()[-1] if first_line_text.strip() else ""
+
+                    is_end = last_char in ".!?)»"
+
+                    if not is_end:
+                        if abs(left_x - LEFT_MARGIN) > LEFT_TOL_PT:
+                            left_issue = True
+
                 # --- правый отступ для абзаца ---
+                # --- НОВАЯ проверка правого отступа ---
                 right_issue = False
-                if treat_right and right_x is not None and abs(right_x - expected_right) > RIGHT_TOL_PT:
-                    # но если абзац явно justified — позволяем мелкие отличия
-                    if not paragraph_is_justified(par, page_width):
+
+                line_text = span_text_from_line(par[0])
+                first_token = line_text.split()[0] if line_text.split() else ""
+                is_list_item = is_marker_token(first_token)
+
+                # 1) Заголовок — НИЧЕГО не проверяем
+                if is_bold_heading:  # ИСПРАВЛЕНО: было is_heading
+                    right_issue = False
+
+                # 2) Элемент списка
+                elif is_list_item:
+                    # если списочный элемент слишком широкий
+                    if right_x is not None and right_x > expected_right + RIGHT_TOL_PT:
                         right_issue = True
+
+                # 3) Обычный абзац
+                else:
+                    # если не justify и не последняя строка
+                    if right_x is not None and abs(right_x - expected_right) > RIGHT_TOL_PT:
+                        if not paragraph_is_justified(par, page_width):
+                            right_issue = True
 
                 # --- выравнивание по ширине ---
                 align_issue = False
@@ -292,7 +385,18 @@ def process_pdf(input_bytes: bytes) -> bytes:
                 # --- шрифт/размер/цвет на уровне span (будем подсвечивать span'ы индивидуально) ---
                 span_issue_rects = []
                 for ln in par:
+                    # получим первый токен строки, чтобы распознать маркер
+                    line_text = span_text_from_line(ln)
+                    first_token = line_text.split()[0] if line_text.split() else ""
+                    line_is_list_marker = is_list and is_marker_token(first_token)
+
                     for sp in ln["spans"]:
+                        # Если это строка-элемент списка и её первый токен — маркер, то не проверяем маркерный span
+                        # (пропускаем проверку для начального маркера)
+                        sp_text = sp.get("text", "").strip()
+                        if line_is_list_marker and sp_text and is_marker_token(sp_text):
+                            continue
+
                         font = sp.get("font", "")
                         size = sp.get("size", 0)
                         color = sp.get("color", 0)
@@ -300,9 +404,15 @@ def process_pdf(input_bytes: bytes) -> bytes:
                         bad_font = not ("Times" in font or "Times" in font.lower())
                         bad_size = not (MIN_FONT <= size <= MAX_FONT)
                         bad_color = not is_black(color)
+
+                        # если это строка списка (не маркерная часть), то списочные пункты могут иметь меньшую длину,
+                        # но при этом тело пункта всё равно должно удовлетворять требованиям — оставим проверку.
+                        # Тем не менее, если весь абзац помечен как список и avg_line_len < MIN_LEN_FOR_LEFT_CHECK_PT,
+                        # можно опционально ослабить size-check — но пока не делаем этого.
+
                         if bad_font or bad_size or bad_color:
-                            # добавим прямоугольник под span — потом делаем annot
                             span_issue_rects.append((bbox, bad_font, bad_size, bad_color, size))
+
 
                 # --- теперь рисуем и группируем пометки абзацно (а не построчно) ---
                 # левый отступ — светлая заливка слева блока
@@ -348,19 +458,54 @@ def process_pdf(input_bytes: bytes) -> bytes:
                     page.insert_text((page_width - 220, r.y0), "Абзац не выровнен по ширине", fontsize=8, fontname=CYR_FONTNAME, color=(1,0,0))
 
                 # межстрочные — группируем смежные строки с проблемой
+                # --- неправильный межстрочный интервал: вместо заливки — линии ---
                 groups = group_line_issues(par, spacing_issues)
                 for (sidx, eidx) in groups:
-                    seg = par[sidx:eidx+1]
+
+                    for i in range(sidx, eidx + 1):
+                        if i == 0:
+                            continue
+                        prev_ln = par[i - 1]
+                        ln = par[i]
+
+                        # высота строки
+                        prev_h = prev_ln["bbox"][3] - prev_ln["bbox"][1]
+                        ln_h = ln["bbox"][3] - ln["bbox"][1]
+
+                        # смещение вниз: 20–25% высоты строки (оптимально)
+                        offset = prev_h * 0.25
+
+                        # безопасное положение линии
+                        y = prev_ln["bbox"][3] + offset
+
+                        # ширину тоже можно привязать
+                        x0 = min(prev_ln["bbox"][0], ln["bbox"][0]) + 10
+                        x1 = max(prev_ln["bbox"][2], ln["bbox"][2]) - 10
+
+                        page.draw_line(
+                            (x0, y),
+                            (x1, y),
+                            color=(1.0, 0.55, 0.0),  # ярко-оранжевая
+                            width=2
+                        )
+
+                    # подпись
+                    seg = par[sidx:eidx + 1]
                     r = rect_for_lines(seg)
-                    page.draw_rect(r, fill=(1,1,0.9), overlay=True)
-                    page.insert_text((r.x0 + 6, r.y0), "Интервал не полуторный", fontsize=7, fontname=CYR_FONTNAME, color=(0.6,0,0))
+                    page.insert_text(
+                        (r.x0, r.y0 - 8),
+                        "Неверный межстрочный интервал",
+                        fontsize=8,
+                        fontname=CYR_FONTNAME,
+                        color=(1.0, 0.45, 0.0)
+                    )
+
 
                 # подсветка span-level проблем (шрифт/размер/цвет) — делаем highlight + подпись у первого
                 for bbox, bad_font, bad_size, bad_color, size in span_issue_rects:
-                    hl = page.add_highlight_annot(fitz.Rect(bbox))
-                    hl.set_colors(stroke=(1,1,0))
-                    hl.set_opacity(0.4)
-                    hl.update()
+                    rect = fitz.Rect(bbox)
+                    page.draw_rect(rect, fill=(1, 0, 0), fill_opacity=0.35, color = None, width=0, overlay=True)
+
                 # подписи для span-issues — чтобы не писать на каждую, сгруппируем по близости
                 # (простая стратегия: если есть хоть одна span_issue в абзаце — пишем одно сообщение сверху)
                 if span_issue_rects:
@@ -369,10 +514,58 @@ def process_pdf(input_bytes: bytes) -> bytes:
                     if any(x[1] for x in span_issue_rects): msgs.append("Шрифт не Times New Roman")
                     if any(x[2] for x in span_issue_rects): msgs.append(f"Размер не в {MIN_FONT}-{MAX_FONT} pt")
                     if any(x[3] for x in span_issue_rects): msgs.append("Не чёрный цвет")
-                    page.insert_text((r.x0, r.y0 - 10), "; ".join(msgs), fontsize=7, fontname=CYR_FONTNAME, color=(1,0,0))
+                    page.insert_text((r.x0, r.y0 - 2), "; ".join(msgs), fontsize=7, fontname=CYR_FONTNAME, color=(1,0,0))
+    # ---- ДОПОЛНИТЕЛЬНЫЙ ПРОХОД: межстрочные интервалы между абзацами ----
+    # собираем все строки страницы в один список
+    all_lines = []
+    for block in data.get("blocks", []):
+        if block.get("type") != 0:
+            continue
+        for ln in block.get("lines", []):
+            # берём средний размер шрифта строки
+            if ln.get("spans"):
+                fsize = statistics.median([s["size"] for s in ln["spans"]])
+            else:
+                fsize = 12
+            all_lines.append({
+                "bbox": ln["bbox"],
+                "font_size": fsize
+            })
+
+    # сортируем сверху вниз
+    all_lines.sort(key=lambda l: l["bbox"][1])
+
+    # пробегаем пары строк
+    for i in range(1, len(all_lines)):
+        prev_ln = all_lines[i - 1]
+        ln = all_lines[i]
+
+        gap = ln["bbox"][1] - prev_ln["bbox"][3]
+        avg_font = (prev_ln["font_size"] + ln["font_size"]) / 2
+        expected_gap = avg_font * 1.5
+
+        # если gap сильно отклоняется от нормы (±20%)
+        if abs(gap - expected_gap) > avg_font * 0.3:
+            # рисуем линию между абзацами (так же как внутри абзацев)
+            gap_center = (prev_ln["bbox"][3] + ln["bbox"][1]) / 2
+            y = gap_center + avg_font * 0.15
+
+            x0 = min(prev_ln["bbox"][0], ln["bbox"][0]) + 10
+            x1 = max(prev_ln["bbox"][2], ln["bbox"][2]) - 10
+
+            page.draw_line((x0, y), (x1, y), color=(1.0, 0.55, 0.0), width=2)
+            # page.insert_text(
+            #     (x0, y - 10),
+            #     "Неверный межстрочный интервал",
+            #     fontsize=7,
+            #     fontname=CYR_FONTNAME,
+            #     color=(1.0, 0.4, 0.0)
+            # )
 
     out = io.BytesIO()
     doc.save(out)
     doc.close()
     return out.getvalue()
+
+
 
