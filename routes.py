@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
 import io
 import urllib.parse
-from utils import process_pdf
+from processor import process_pdf
 
 router = APIRouter()
 

@@ -13,7 +13,7 @@ COPY requirements.txt .
 RUN pip install --upgrade pip wheel setuptools && \
     pip install --no-cache-dir -r requirements.txt
 
-COPY ./main.py ./routes.py ./utils.py ./
+COPY *.py ./
 COPY ./static ./static
 
 EXPOSE 8000
