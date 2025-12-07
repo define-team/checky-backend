@@ -1,0 +1,58 @@
+[
+  {
+    "message": "Неверный шрифт: Calibri → должен содержать 'TimesNewRoman'",
+    "node_id": 12,
+    "error_type": "font",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+  {
+    "message": "Неверный размер: 11.039999961853027 → допустимо 12-14",
+    "node_id": 12,
+    "error_type": "font_size",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+  {
+    "message": "Неверный шрифт: Calibri → должен содержать 'TimesNewRoman'",
+    "node_id": 12,
+    "error_type": "font",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+  {
+    "message": "Неверный размер: 11.039999961853027 → допустимо 12-14",
+    "node_id": 12,
+    "error_type": "font_size",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+  {
+    "message": "Неверный шрифт: Calibri → должен содержать 'TimesNewRoman'",
+    "node_id": 12,
+    "error_type": "font",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+  {
+    "message": "Неверный размер: 11.039999961853027 → допустимо 12-14",
+    "node_id": 12,
+    "error_type": "font_size",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+  {
+    "message": "Левое поле меньше ГОСТ: 25.0 мм < 30 мм",
+    "node_id": 11,
+    "error_type": "page_margin",
+    "expected": null,
+    "found": null,
+    "node": "Page"
+  }
+]

@@ -1,0 +1,26 @@
+[
+  {
+    "message": "Верхнее поле меньше ГОСТ: 12.8 мм < 20 мм",
+    "node_id": 2,
+    "error_type": "page_margin",
+    "expected": null,
+    "found": null,
+    "node": "Page"
+  },
+  {
+    "message": "Левое поле меньше ГОСТ: 7.7 мм < 30 мм",
+    "node_id": 2,
+    "error_type": "page_margin",
+    "expected": null,
+    "found": null,
+    "node": "Page"
+  },
+  {
+    "message": "Правое поле меньше ГОСТ: 12.0 мм < 15 мм",
+    "node_id": 2,
+    "error_type": "page_margin",
+    "expected": null,
+    "found": null,
+    "node": "Page"
+  }
+]

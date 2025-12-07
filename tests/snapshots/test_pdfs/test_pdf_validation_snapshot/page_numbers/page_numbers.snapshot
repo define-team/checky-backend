@@ -1,0 +1,34 @@
+[
+  {
+    "message": "Левое поле меньше ГОСТ: 25.0 мм < 30 мм",
+    "node_id": 20,
+    "error_type": "page_margin",
+    "expected": null,
+    "found": null,
+    "node": "Page"
+  },
+  {
+    "message": "Номер страницы не соответствует реальному: 2 != 3",
+    "node_id": 41,
+    "error_type": "page_number",
+    "expected": null,
+    "found": null,
+    "node": "PageNumber"
+  },
+  {
+    "message": "Номер страницы не центрирован по горизонтали с учётом полей: 3.2 != 11.2",
+    "node_id": 41,
+    "error_type": "page_number",
+    "expected": null,
+    "found": null,
+    "node": "PageNumber"
+  },
+  {
+    "message": "Номер страницы не соответствует реальному: 2 != 4",
+    "node_id": 47,
+    "error_type": "page_number",
+    "expected": null,
+    "found": null,
+    "node": "PageNumber"
+  }
+]
