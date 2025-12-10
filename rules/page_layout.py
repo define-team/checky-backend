@@ -1,4 +1,5 @@
-from dom import Document, PageNumber
+import statistics
+from dom import Document, PageNumber, Paragraph, Line
 from errors import RuleError, ErrorType
 from typing import List
 
@@ -83,63 +84,114 @@ class RulePageMargins:
                         error_type=ErrorType.PAGE_MARGIN
                     ))
 
-            page_number_node = None
             for node in page.children:
                 if isinstance(node, PageNumber):
-                    page_number_node = node
-                    break
+                    errors.extend(self.check_page_number(page, node))
+                    continue
 
-            if page.number > 0:
-                if not page_number_node:
-                    errors.append(RuleError(
-                        message="На странице отсутствует номер страницы",
-                        node=page,
-                        node_id=page.node_id,
-                        error_type=ErrorType.PAGE_NUMBER
-                    ))
-                else:
-                    if page_number_node.text != str(page.number + 1):
-                        errors.append(RuleError(
-                            message=f"Номер страницы не соответствует реальному: {page_number_node.text} != {page.number + 1}",
-                            node=page_number_node,
-                            node_id=page_number_node.node_id,
-                            error_type=ErrorType.PAGE_NUMBER
-                        ))
+                if isinstance(node, Paragraph):
+                    errors.extend(self.check_paragraph_alignment(node))
 
-                    page_left = page.bbox[0]
-                    page_right = page.bbox[2]
-                    page_print_center_x = (page_right + page_left )/2 + (self.left - self.right)/2/10 * CM_TO_PT
-                    number_center_x = (page_number_node.bbox[0] + page_number_node.bbox[2]) / 2
-                    tol = CM_TO_PT * 0.2
+        return errors
 
-                    if abs(number_center_x - page_print_center_x) > tol:
-                        errors.append(RuleError(
-                            message=(
-                                f"Номер страницы не центрирован по горизонтали с учётом полей: "
-                                f"{number_center_x/CM_TO_PT:.1f} != {page_print_center_x/CM_TO_PT:.1f}"
-                            ),
-                            node=page_number_node,
-                            node_id=page_number_node.node_id,
-                            error_type=ErrorType.PAGE_NUMBER
-                        ))
+    def check_page_number(self, page, page_number_node: PageNumber = None):
+        errors: List[RuleError] = []
 
-                    number_top_from_bottom_mm = (page.bbox[3] - page_number_node.bbox[3]) * PT_TO_MM
-                    number_bottom_from_bottom_mm = (page.bbox[3] - page_number_node.bbox[1]) * PT_TO_MM
+        if page.number > 0:
+            if not page_number_node:
+                errors.append(RuleError(
+                    message="На странице отсутствует номер страницы",
+                    node=page,
+                    node_id=page.node_id,
+                    error_type=ErrorType.PAGE_NUMBER
+                ))
+                return errors
 
-                    if number_top_from_bottom_mm > self.page_number_bottom:
-                        errors.append(RuleError(
-                            message=f"Верхняя граница номера страницы слишком высокая: {number_top_from_bottom_mm:.1f} мм > {self.page_number_bottom} мм",
-                            node=page_number_node,
-                            node_id=page_number_node.node_id,
-                            error_type=ErrorType.PAGE_NUMBER
-                        ))
+            if page_number_node.text != str(page.number + 1):
+                errors.append(RuleError(
+                    message=(
+                        f"Номер страницы не соответствует реальному: "
+                        f"{page_number_node.text} != {page.number + 1}"
+                    ),
+                    node=page_number_node,
+                    node_id=page_number_node.node_id,
+                    error_type=ErrorType.PAGE_NUMBER
+                ))
 
-                    if number_bottom_from_bottom_mm < self.page_number_margin:
-                        errors.append(RuleError(
-                            message=f"Нижняя граница номера страницы слишком близко к краю: {number_bottom_from_bottom_mm:.1f} мм < {self.page_number_margin} мм",
-                            node=page_number_node,
-                            node_id=page_number_node.node_id,
-                            error_type=ErrorType.PAGE_NUMBER
-                        ))
+            page_left = page.bbox[0]
+            page_right = page.bbox[2]
+            page_print_center_x = (page_right + page_left) / 2 + (self.left - self.right) / 2 / 10 * CM_TO_PT
+
+            number_center_x = (page_number_node.bbox[0] + page_number_node.bbox[2]) / 2
+            tol = CM_TO_PT * 0.2
+
+            if abs(number_center_x - page_print_center_x) > tol:
+                errors.append(RuleError(
+                    message=(
+                        "Номер страницы не центрирован по горизонтали с учётом полей: "
+                        f"{number_center_x / CM_TO_PT:.1f} != {page_print_center_x / CM_TO_PT:.1f}"
+                    ),
+                    node=page_number_node,
+                    node_id=page_number_node.node_id,
+                    error_type=ErrorType.PAGE_NUMBER
+                ))
+
+            number_top_from_bottom_mm = (page.bbox[3] - page_number_node.bbox[3]) * PT_TO_MM
+            number_bottom_from_bottom_mm = (page.bbox[3] - page_number_node.bbox[1]) * PT_TO_MM
+
+            if number_top_from_bottom_mm > self.page_number_bottom:
+                errors.append(RuleError(
+                    message=(
+                        f"Верхняя граница номера страницы слишком высокая: "
+                        f"{number_top_from_bottom_mm:.1f} мм > {self.page_number_bottom} мм"
+                    ),
+                    node=page_number_node,
+                    node_id=page_number_node.node_id,
+                    error_type=ErrorType.PAGE_NUMBER
+                ))
+
+            if number_bottom_from_bottom_mm < self.page_number_margin:
+                errors.append(RuleError(
+                    message=(
+                        f"Нижняя граница номера страницы слишком близко к краю: "
+                        f"{number_bottom_from_bottom_mm:.1f} мм < {self.page_number_margin} мм"
+                    ),
+                    node=page_number_node,
+                    node_id=page_number_node.node_id,
+                    error_type=ErrorType.PAGE_NUMBER
+                ))
+
+        return errors
+
+    def check_paragraph_alignment(self, paragraph: Paragraph) -> List[RuleError]:
+        errors: List[RuleError] = []
+
+        lines = paragraph.children
+        if not lines or len(lines) < 2:
+            return errors
+
+        rights = [line.bbox[2] for line in lines[:-1]]
+        lefts = [line.bbox[0] for line in lines[1:]]
+
+        align_issue = False
+        if rights:
+            median_right = statistics.median(rights)
+            bad = sum(1 for r in rights if abs(r - median_right) > 15)
+            if bad / len(rights) > 0.3:
+                align_issue = True
+
+        if lefts:
+            median_left = statistics.median(lefts)
+            left_bad = sum(1 for l in lefts if abs(l - median_left) > 15)
+            if left_bad / len(lefts) > 0.3:
+                align_issue = True
+
+        if align_issue:
+            errors.append(RuleError(
+                message="Абзац не выровнен по ширине",
+                node=paragraph,
+                node_id=paragraph.node_id,
+                error_type=ErrorType.PARAGRAPH_JUSTIFIED
+            ))
 
         return errors

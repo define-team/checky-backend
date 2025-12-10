@@ -115,17 +115,33 @@ class PDFDOMParser:
     def _parse_text_block(self, block, link_rects) -> Optional[Paragraph]:
         para = Paragraph(orig=block)
 
+        all_spans = []
         for line in block.get("lines", []):
-            if not any(span.get("text", "").strip() for span in line.get("spans", [])):
-                continue
+            for span in line.get("spans", []):
+                text = span.get("text", "").strip()
+                if text:
+                    all_spans.append(span)
 
-            line_node = Line(bbox=tuple(line["bbox"]), orig=line)
+        if not all_spans:
+            return None
+
+        all_spans.sort(key=lambda s: (s["bbox"][3], s["bbox"][0]))
+
+        y_threshold = 2.0
+        i = 0
+        n = len(all_spans)
+
+        while i < n:
+            first_span = all_spans[i]
+            y_center = (first_span["bbox"][1] + first_span["bbox"][3]) / 2
+            line_node = Line(bbox=None, orig=None)
             para.add_child(line_node)
 
-            for span in line.get("spans", []):
-                text = span.get("text", "")
-                if not text.strip():
-                    continue
+            while i < n:
+                span = all_spans[i]
+                span_y_center = (span["bbox"][1] + span["bbox"][3]) / 2
+                if abs(span_y_center - y_center) > y_threshold:
+                    break
 
                 span_rect = fitz.Rect(span["bbox"])
                 link_node = None
@@ -136,7 +152,7 @@ class PDFDOMParser:
                         break
 
                 span_node = Span(
-                    text=text,
+                    text=span.get("text", ""),
                     font=span.get("font", ""),
                     size=span.get("size", 0.0),
                     bbox=tuple(span["bbox"]),
@@ -149,8 +165,14 @@ class PDFDOMParser:
                     line_node.spans.append(span_node)
                     line_node.add_child(span_node)
 
-        if not para.children:
-            return None
+                i += 1
+
+            if line_node.spans:
+                x0 = min(s.bbox[0] for s in line_node.children)
+                y0 = min(s.bbox[1] for s in line_node.children)
+                x1 = max(s.bbox[2] for s in line_node.children)
+                y1 = max(s.bbox[3] for s in line_node.children)
+                line_node.bbox = (x0, y0, x1, y1)
 
         x0 = min(line.bbox[0] for line in para.children)
         y0 = min(line.bbox[1] for line in para.children)

@@ -5,8 +5,8 @@ import fitz
 
 
 class RuleFontSize:
-    def __init__(self, font_name="TimesNewRoman", font_size_from=12, font_size_to=14, size_tol=0.1):
-        self.font_name = font_name
+    def __init__(self, font_name="Times New Roman", font_size_from=12, font_size_to=14, size_tol=0.1):
+        self.font_name = font_name.replace(' ', '')
         self.font_size_from = font_size_from
         self.font_size_to = font_size_to
         self.size_tol = size_tol
@@ -34,7 +34,7 @@ class RuleFontSize:
             if isinstance(node, Span):
                 local_errors = []
 
-                real_font = get_real_font(node)
+                real_font = get_real_font(node).replace(' ', '')
 
                 if self.font_name not in real_font:
                     local_errors.append(RuleError(

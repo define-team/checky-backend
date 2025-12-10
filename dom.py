@@ -67,6 +67,7 @@ class Line(Node):
     spans: List[Span] = field(default_factory=list)
     bbox: Tuple[float, float, float, float] = (0,0,0,0)
     node_type: str = "line"
+    orig: None
 
 @dataclass
 class Paragraph(Node):

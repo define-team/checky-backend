@@ -13,6 +13,8 @@ class ErrorType:
     GENERAL = "general"
     PAGE_MARGIN = "page_margin"
     PAGE_NUMBER = "page_number"
+    MISSING_IMAGE_DESCRIPTION = "missing_image_description"
+    PARAGRAPH_JUSTIFIED = "paragraph_justified"
 
 @dataclass
 class RuleError:
