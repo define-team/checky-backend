@@ -6,6 +6,7 @@ from dom import Document
 from rules.font import RuleFontSize
 from rules.structure import RuleHeadingFollowedByParagraph
 from rules.page_layout import RulePageMargins
+from rules.image import RuleImageCenterByMargins
 
 def process_pdf(input_bytes: bytes, draw_lines=False) -> bytes:
     errors: list[RuleError] = validate_pdf(input_bytes)
@@ -19,7 +20,8 @@ def validate_pdf(input_bytes: bytes) -> list[RuleError]:
     rules = [
         RuleFontSize(),
         RuleHeadingFollowedByParagraph(),
-        RulePageMargins()
+        RulePageMargins(),
+        RuleImageCenterByMargins()
     ]
 
     errors: list[RuleError] = []

@@ -11,8 +11,8 @@ class RulePageMargins:
     Проверка полей страницы по контенту (расстояние от текста/таблиц/картинок до краёв страницы)
     и наличие/позицию номера страницы
     """
-    def __init__(self, 
-                 top_mm=20, bottom_mm=20, left_mm=30, right_mm=15,
+    def __init__(self,
+                 top_mm=20, bottom_mm=20, left_mm=30, right_mm=20,
                  tol_mm=1,
                  page_number_bottom_mm=20,
                  page_number_margin_mm=5):

@@ -37,19 +37,18 @@ class PDFDOMParser:
             btype = block.get("type", 0)
             if btype == 0:
                 para = self._parse_text_block(block, link_rects)
-                if para:  # добавляем только непустые параграфы
+                if para:
                     page_node.add_child(para)
-            elif btype == 1:  # таблица
+            elif btype == 1:
                 table_node = Table(bbox=tuple(block["bbox"]), raw_data=block, orig=block)
                 page_node.add_child(table_node)
-            elif btype == 2:  # изображение
+            elif btype == 2:
                 img_node = self._parse_image_block(block, page)
                 if img_node:
                     page_node.add_child(img_node)
 
         self._detect_page_number(page_node)
 
-        # merge соседних параграфов
         self._merge_paragraphs(page_node)
 
 

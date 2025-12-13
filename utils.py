@@ -4,9 +4,9 @@ import statistics
 import re
 
 _marker_re = re.compile(r"""^(
-    [\u2022\u2023\-\–\—\*·]+ |    # bullets/dashes
-    \d+[\.\)] |                   # 1.  or 1)
-    [a-zA-Z]\)                    # a)
+    [\u2022\u2023\-\–\—\*·]+ |
+    \d+[\.\)] |
+    [a-zA-Z]\)
     )$""", re.X)
 
 CYR_FONT = fitz.Font("tiro")
@@ -29,7 +29,7 @@ FIRST_LINE_INDENT_CM = 1.25
 FIRST_LINE_INDENT_PT = FIRST_LINE_INDENT_CM * CM_TO_POINTS
 MIN_LEN_FOR_LEFT_CHECK_PT = 2.0 * CM_TO_POINTS
 
-# УПРОЩЁННАЯ ПРОВЕРКА ЛЕВОГО ОТСТУПА ---
+# упрощенный левый отступ
 
 def check_left_indent(line):
     """
@@ -39,12 +39,12 @@ def check_left_indent(line):
 
     spans = [s for s in line.get("spans", []) if s.get("text", "").strip()]
     if not spans:
-        return False  # пустая строка, нарушение не считаем
+        return False
 
     line_left = min(sp["bbox"][0] for sp in spans)
 
     if line_left < LEFT_MARGIN:
-        return True  # нарушение
+        return True
 
     return False
 
@@ -155,13 +155,10 @@ def is_list_line_text(text: str):
     t = text.strip()
     if not t:
         return False
-    # bullets
     if t[0] in ("•", "·", "-", "—", "–", "*"):
         return True
-    # numeric items like "1.", "1)", "a)", "1."
     if t.split()[0].rstrip(").:").isdigit():
         return True
-    # or starts with digit + dot
     if t[0].isdigit() and len(t) > 1 and t[1] in (".", ")"):
         return True
     return False
@@ -300,13 +297,12 @@ def process_pdf(input_bytes: bytes) -> bytes:
 
         for block in data.get("blocks", []):
 
-            if block.get("type") == 1:  # image
+            if block.get("type") == 1:
                 img_left = block["bbox"][0]
                 img_right = block["bbox"][2]
                 img_center = (img_left + img_right) / 2
                 page_center = page_width / 2
                 if abs(img_center - page_center) > IMG_CENTER_TOL_PT:
-                    # прямоугольник под картинкой и подпись
                     page.insert_text(
                         (img_left, block["bbox"][3] + 4),
                         "Рисунок не выровнен по центру",
@@ -354,55 +350,45 @@ def process_pdf(input_bytes: bytes) -> bytes:
                         left_issue = True
                         break
 
-                # # --- НОВЫЙ алгоритм проверки левого отступа ---
-                # # --- ЛЕВЫЙ ОТСТУП — НОВАЯ ЛОГИКА ---
+
+                # # левый отступ новая логика
                 # left_issue = False
                 #
-                # # текст первой строки
                 first_line_text = span_text_from_line(par[0])
                 first_char = first_line_text.strip()[0] if first_line_text.strip() else ""
                 #
-                # # вычисляем левый край первой строки абзаца
                 # first_spans = [s for s in par[0].get("spans", []) if s.get("text", "").strip()]
                 # first_left = min(s["bbox"][0] for s in first_spans) if first_spans else None
                 #
-                # # если margin не вычислился — считаем, что 3 см
                 # if left_x is None:
                 #     left_x = LEFT_MARGIN
                 #
-                # # виды строк
                 # is_heading = is_bold_heading
                 #
                 #
-                # # допустимые варианты красной строки:
                 # acceptable_first_line_offsets = [
                 #     LEFT_MARGIN,  # 3 см
                 #     LEFT_MARGIN + FIRST_LINE_INDENT_PT  # 3 + 1.25 = 4.25 см
                 # ]
                 #
-                # # ---- 1. Заголовки не проверяем ----
                 # if is_heading:
                 #     left_issue = False
                 #
 
-                # # ---- 3. Первая строка абзаца: допускаем 3 см и 4.25 см ----
                 # elif first_left is not None and any(
                 #         abs(first_left - a) <= LEFT_TOL_PT for a in acceptable_first_line_offsets):
                 #     left_issue = False
                 #
-                # # ---- 4. Все остальные строки должны быть ровно 3 см ----
                 # else:
                 #     if abs(left_x - LEFT_MARGIN) > (LEFT_TOL_PT + 2):
-                #         # допускаем до 2 pt погрешности PDF
                 #         left_issue = True
-                # # ---- 2. Подписи к рисункам не проверяем ----
                 # elif is_image_caption:
                 #     left_issue = False
                 #
                 is_image_caption = first_char == "Р"  # «Рисунок ...»
 
 
-                # ПРАВЫЙ ОТСТУП — НОВАЯ ПРОСТАЯ ЛОГИКА
+                # правый отступ простая логика
                 right_issue = False
 
                 if is_bold_heading:
@@ -421,7 +407,7 @@ def process_pdf(input_bytes: bytes) -> bytes:
 
                 if len(par) > 1:
                     rights = []
-                    for ln in par[:-1]:  # все кроме последней
+                    for ln in par[:-1]:
                         r = max(s["bbox"][2] for s in ln["spans"])
                         rights.append(r)
 
@@ -484,37 +470,26 @@ def process_pdf(input_bytes: bytes) -> bytes:
                         if bad_font or bad_size or bad_color:
                             span_issue_rects.append((bbox, bad_font, bad_size, bad_color, size))
 
-                # --- теперь рисуем и группируем пометки абзацно (а не построчно) ---
-                # левый отступ — светлая заливка слева блока
-                # --- вместо старой заливки слева:
                 if left_issue:
                     r = rect_for_lines(par)
-                    # координата линии чуть левее фактического левого края абзаца
                     line_x = r.x0 - 6
                     y0 = r.y0
                     y1 = r.y1
-                    # рисуем сплошную вертикальную линию (красная)
                     page.draw_line((line_x, y0), (line_x, y1), color=(0.85, 0.15, 0.15), width=2)
-                    # подпись сверху рядом с линией (горизонтально, читаемо)
                     page.insert_text(
                         (line_x - 4, y0 - 5),
                         f"Неверный левый отступ ",
-                        # ≠ {LEFT_MARGIN_CM} см
                         fontsize=8,
                         fontname=CYR_FONTNAME,
                         color=(0.6, 0, 0)
                     )
 
-                # --- вместо старой заливки справа:
                 if right_issue:
                     r = rect_for_lines(par)
-                    # координата линии чуть правее фактического правого края абзаца
                     line_x = r.x1 + 6
                     y0 = r.y0
                     y1 = r.y1
-                    # рисуем сплошную вертикальную линию (синяя)
                     page.draw_line((line_x, y0), (line_x, y1), color=(0, 0.2, 0.8), width=2)
-                    # подпись сверху справа от линии (горизонтально)
                     page.insert_text(
                         (line_x - 80, y0 - 5),
                         f"Правый отступ ≠ {RIGHT_MARGIN_CM} см",
@@ -529,7 +504,6 @@ def process_pdf(input_bytes: bytes) -> bytes:
                     page.insert_text((page_width - 220, r.y0), "Абзац не выровнен по ширине", fontsize=8,
                                      fontname=CYR_FONTNAME, color=(1, 0, 0))
 
-                # --- неправильный межстрочный интервал (НОВАЯ ОТРИСОВКА) ---
                 groups = group_line_issues(par, spacing_issues)
                 for (sidx, eidx) in groups:
                     for i in range(sidx, eidx + 1):
@@ -539,14 +513,12 @@ def process_pdf(input_bytes: bytes) -> bytes:
                         prev_ln = par[i - 1]
                         ln = par[i]
 
-                        # горизонтальные границы — пересечение строк
                         x0 = max(prev_ln["bbox"][0], ln["bbox"][0])
                         x1 = min(prev_ln["bbox"][2], ln["bbox"][2])
 
                         if x1 <= x0:
                             continue
 
-                        # ровно посередине интервала
                         y = (prev_ln["bbox"][3] + ln["bbox"][1]) / 2
 
                         page.draw_line(
@@ -556,7 +528,6 @@ def process_pdf(input_bytes: bytes) -> bytes:
                             width=2
                         )
 
-                    # подпись
                     top_ln = par[sidx]
                     page.insert_text(
                         (top_ln["bbox"][0], top_ln["bbox"][1] - 6),
@@ -566,13 +537,10 @@ def process_pdf(input_bytes: bytes) -> bytes:
                         color=(0.6, 0.0, 0.8)
                     )
                 # check_global_line_spacing(page, page_dict, CYR_FONTNAME)
-                # подсветка span-level проблем (шрифт/размер/цвет) — делаем highlight + подпись у первого
                 for bbox, bad_font, bad_size, bad_color, size in span_issue_rects:
                     rect = fitz.Rect(bbox)
                     page.draw_rect(rect, fill=(1, 0, 0), fill_opacity=0.35, color=None, width=0, overlay=True)
 
-                # подписи для span-issues — чтобы не писать на каждую, сгруппируем по близости
-                # (простая стратегия: если есть хоть одна span_issue в абзаце — пишем одно сообщение сверху)
                 if span_issue_rects:
                     r = rect_for_lines(par)
                     msgs = []
@@ -581,7 +549,6 @@ def process_pdf(input_bytes: bytes) -> bytes:
                     if any(x[3] for x in span_issue_rects): msgs.append("Не чёрный цвет")
                     page.insert_text((r.x0, r.y0 - 2), "; ".join(msgs), fontsize=7, fontname=CYR_FONTNAME,
                                      color=(1, 0, 0))
-    # ---- Межабзацные интервалы (НОВАЯ ЛОГИКА) ----
 
     text_lines = []
     for block in data.get("blocks", []):
@@ -591,10 +558,8 @@ def process_pdf(input_bytes: bytes) -> bytes:
             if not ln.get("spans"):
                 continue
 
-            # пропускаем заголовки
             if any(detect_bold(s) for s in ln["spans"]) and ln["spans"][0]["size"] >= MAX_FONT:
                 continue
-            # пропускаем подписи рисунков
             if span_text_from_line(ln).strip().startswith("Рисунок"):
                 continue
 
@@ -616,9 +581,7 @@ def process_pdf(input_bytes: bytes) -> bytes:
         gap = cur["bbox"][1] - prev["bbox"][3]
         h = prev["height"]
 
-        # межабзацный интервал считается нормальным около 1.2h–1.8h
         if gap > h * 1.8:
-            # лишний интервал — помечаем
             y = (prev["bbox"][3] + cur["bbox"][1]) / 2
             x0 = max(prev["bbox"][0], cur["bbox"][0])
             x1 = min(prev["bbox"][2], cur["bbox"][2])
@@ -634,12 +597,3 @@ def process_pdf(input_bytes: bytes) -> bytes:
     doc.save(out)
     doc.close()
     return out.getvalue()
-
-
-
-
-
-
-
-
-

@@ -11,13 +11,13 @@ router = APIRouter()
     "/upload",
     summary="Загрузка PDF и получение обработанного файла",
     description="""
-Загружает PDF-документ, запускает алгоритм проверки оформления 
-(шрифты, отступы, межстрочный интервал, выравнивание, картинки), 
+Загружает PDF-документ, запускает алгоритм проверки оформления
+(шрифты, отступы, межстрочный интервал, выравнивание, картинки),
 и возвращает исправленный PDF-файл.
 
 **Требования:**
-- Файл должен быть формата PDF  
-- MIME-типы: `application/pdf` или `application/x-pdf`  
+- Файл должен быть формата PDF
+- MIME-типы: `application/pdf` или `application/x-pdf`
 - Неверный формат - 400
 """
 )
@@ -64,7 +64,6 @@ async def download_pdf(file: UploadFile = File(...)):
         io.BytesIO(processed),
         media_type="application/pdf",
         headers={
-            # ASCII-safe fallback
             "Content-Disposition": (
                 f"attachment; filename=processed.pdf; "
                 f"filename*=UTF-8''{encoded_name}"

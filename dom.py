@@ -15,7 +15,7 @@ class Node:
     orig: Any = None
     node_type: str = "node"
     errors: List[Any] = field(default_factory=list)
-    node_id: int = field(default_factory=generate_node_id) 
+    node_id: int = field(default_factory=generate_node_id)
 
     def add_child(self, node: "Node"):
         node.parent = self
@@ -27,10 +27,10 @@ class Node:
         Безопасно, без рекурсивных сравнений.
         """
         for i, child in enumerate(self.children):
-            if child is old_node:  # сравниваем по объекту
+            if child is old_node:
                 new_node.parent = self
                 self.children[i] = new_node
-                old_node.parent = None  # отвязываем старый
+                old_node.parent = None
                 return True
         return False
 
