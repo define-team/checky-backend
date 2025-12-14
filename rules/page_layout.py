@@ -90,7 +90,8 @@ class RulePageMargins:
                     continue
 
                 if isinstance(node, Paragraph):
-                    errors.extend(self.check_paragraph_alignment(node))
+                    errors.extend(self.check_paragraph_alignment(node, page))
+
 
         return errors
 
@@ -163,35 +164,44 @@ class RulePageMargins:
 
         return errors
 
-    def check_paragraph_alignment(self, paragraph: Paragraph) -> List[RuleError]:
+    def check_paragraph_alignment(self, paragraph: Paragraph, page) -> List[RuleError]:
         errors: List[RuleError] = []
 
         lines = paragraph.children
         if not lines or len(lines) < 2:
             return errors
 
-        rights = [line.bbox[2] for line in lines[:-1]]
-        lefts = [line.bbox[0] for line in lines[1:]]
+        expected_left = self.left * CM_TO_PT
+        expected_right = page.bbox[2] - self.right * CM_TO_PT
 
-        align_issue = False
-        if rights:
-            median_right = statistics.median(rights)
-            bad = sum(1 for r in rights if abs(r - median_right) > 15)
-            if bad / len(rights) > 0.3:
-                align_issue = True
+        tol = 5
+        ok_lines = 0
+        checked = 0
 
-        if lefts:
-            median_left = statistics.median(lefts)
-            left_bad = sum(1 for l in lefts if abs(l - median_left) > 15)
-            if left_bad / len(lefts) > 0.3:
-                align_issue = True
+        for line in lines[:-1]:
+            left = line.bbox[0]
+            right = line.bbox[2]
 
-        if align_issue:
+            left_ok = abs(left - expected_left) <= tol
+            right_ok = abs(right - expected_right) <= tol
+
+            if left_ok and right_ok:
+                ok_lines += 1
+            checked += 1
+
+        last_line = lines[-1]
+        last_left_ok = abs(last_line.bbox[0] - expected_left) <= tol
+
+        if checked == 0:
+            return errors
+
+        justify_ratio = ok_lines / checked
+
+        if justify_ratio < 0.7 or not last_left_ok:
             errors.append(RuleError(
-                message="Абзац не выровнен по ширине",
+                message="Абзац не выровнен по ширине (ГОСТ)",
                 node=paragraph,
                 node_id=paragraph.node_id,
                 error_type=ErrorType.PARAGRAPH_JUSTIFIED
             ))
-
         return errors

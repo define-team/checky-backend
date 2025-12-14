@@ -7,6 +7,7 @@ from rules.font import RuleFontSize
 from rules.structure import RuleHeadingFollowedByParagraph
 from rules.page_layout import RulePageMargins
 from rules.image import RuleImageCenterByMargins
+from rules.rule_line_spacing import RuleLineSpacing
 
 def process_pdf(input_bytes: bytes, draw_lines=False) -> bytes:
     errors: list[RuleError] = validate_pdf(input_bytes)
@@ -21,7 +22,8 @@ def validate_pdf(input_bytes: bytes) -> list[RuleError]:
         RuleFontSize(),
         RuleHeadingFollowedByParagraph(),
         RulePageMargins(),
-        RuleImageCenterByMargins()
+        RuleImageCenterByMargins(),
+        RuleLineSpacing()
     ]
 
     errors: list[RuleError] = []
