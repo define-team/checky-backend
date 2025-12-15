@@ -34,18 +34,21 @@ class PDFDOMParser:
         sorted_blocks = self.sort_blocks_by_y(dict_data)
 
         for block in sorted_blocks:
+            print("BLOCK TYPE:", block.get("type"), "BBOX:", block.get("bbox"))
             btype = block.get("type", 0)
             if btype == 0:
                 para = self._parse_text_block(block, link_rects)
                 if para:
                     page_node.add_child(para)
             elif btype == 1:
-                table_node = Table(bbox=tuple(block["bbox"]), raw_data=block, orig=block)
-                page_node.add_child(table_node)
-            elif btype == 2:
                 img_node = self._parse_image_block(block, page)
                 if img_node:
                     page_node.add_child(img_node)
+
+            elif btype == 2:
+                table_node = Table(bbox=tuple(block["bbox"]), raw_data=block, orig=block)
+                page_node.add_child(table_node)
+
 
         self._detect_page_number(page_node)
 
@@ -181,17 +184,16 @@ class PDFDOMParser:
 
         return para
 
-    def _parse_image_block(self, block, page) -> Optional[ImageObject]:
-        images = page.get_images(full=True)
-        if not images:
+    def _parse_image_block(self, block, page):
+        if block.get("type") != 1:
             return None
-        xref = images[0][0]
-        pix = page.parent.extract_image(xref)
+
         return ImageObject(
             bbox=tuple(block["bbox"]),
-            image_bytes=pix["image"],
             orig=block
         )
+
+
 
 
     def _detect_page_number(self, page_node: Page):

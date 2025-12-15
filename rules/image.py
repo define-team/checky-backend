@@ -1,9 +1,11 @@
-from dom import ImageObject,Document
+from dom import ImageObject, Document
 from errors import RuleError, ErrorType
 from typing import List
+
 CM_TO_PT = 28.35
+
 class RuleImageCenterByMargins:
-    def __init__(self, left_mm=30, right_mm=20, tol_pt=15):
+    def __init__(self, left_mm=30, right_mm=20, tol_pt=7):
         self.left_mm = left_mm
         self.right_mm = right_mm
         self.tol_pt = tol_pt
@@ -14,21 +16,22 @@ class RuleImageCenterByMargins:
         for page in document.pages:
             page_left, _, page_right, _ = page.bbox
 
-            print_left = page_left + self.left_mm * CM_TO_PT / 10
-            print_right = page_right - self.right_mm * CM_TO_PT / 10
-            print_center = (print_left + print_right) / 2
+            work_left = page_left + self.left_mm * CM_TO_PT / 10
+            work_right = page_right - self.right_mm * CM_TO_PT / 10
+            work_center = (work_left + work_right) / 2
 
             for node in page.children:
                 if not isinstance(node, ImageObject):
                     continue
-                if not node.bbox or node.bbox == (0, 0, 0, 0):
+                if not node.bbox:
                     continue
 
-                img_center = (node.bbox[0] + node.bbox[2]) / 2
+                x0, _, x1, _ = node.bbox
+                img_center = (x0 + x1) / 2
 
-                if abs(img_center - print_center) > self.tol_pt:
+                if abs(img_center - work_center) > self.tol_pt:
                     errors.append(RuleError(
-                        message="Изображение не центрировано относительно полей страницы",
+                        message="Изображение не центрировано относительно рабочей области страницы",
                         node=node,
                         node_id=node.node_id,
                         error_type=ErrorType.IMAGE

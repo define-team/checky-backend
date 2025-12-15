@@ -90,7 +90,7 @@ class RulePageMargins:
                     continue
 
                 if isinstance(node, Paragraph):
-                    errors.extend(self.check_paragraph_alignment(node, page))
+                    errors.extend(self.check_paragraph_alignment(node))
 
 
         return errors
@@ -164,44 +164,31 @@ class RulePageMargins:
 
         return errors
 
-    def check_paragraph_alignment(self, paragraph: Paragraph, page) -> List[RuleError]:
-        errors: List[RuleError] = []
-
+    def check_paragraph_alignment(self, paragraph: Paragraph) -> List[RuleError]:
+        errors = []
         lines = paragraph.children
-        if not lines or len(lines) < 2:
-            return errors
 
-        expected_left = self.left * CM_TO_PT
-        expected_right = page.bbox[2] - self.right * CM_TO_PT
+        if len(lines) < 2:
+            return errors
 
         tol = 5
-        ok_lines = 0
-        checked = 0
+        lefts = [l.bbox[0] for l in lines]
+        rights = [l.bbox[2] for l in lines]
+        centers = [(l + r) / 2 for l, r in zip(lefts, rights)]
 
-        for line in lines[:-1]:
-            left = line.bbox[0]
-            right = line.bbox[2]
+        full_lines = lines[:-1]
 
-            left_ok = abs(left - expected_left) <= tol
-            right_ok = abs(right - expected_right) <= tol
+        left_var = max(l.bbox[0] for l in full_lines) - min(l.bbox[0] for l in full_lines)
+        right_var = max(l.bbox[2] for l in full_lines) - min(l.bbox[2] for l in full_lines)
 
-            if left_ok and right_ok:
-                ok_lines += 1
-            checked += 1
+        is_justify = left_var <= tol and right_var <= tol
 
-        last_line = lines[-1]
-        last_left_ok = abs(last_line.bbox[0] - expected_left) <= tol
-
-        if checked == 0:
-            return errors
-
-        justify_ratio = ok_lines / checked
-
-        if justify_ratio < 0.7 or not last_left_ok:
+        if not is_justify:
             errors.append(RuleError(
                 message="Абзац не выровнен по ширине (ГОСТ)",
                 node=paragraph,
                 node_id=paragraph.node_id,
                 error_type=ErrorType.PARAGRAPH_JUSTIFIED
             ))
+
         return errors
