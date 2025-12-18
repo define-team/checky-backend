@@ -1,0 +1,10 @@
+[
+  {
+    "message": "Изображение не центрировано относительно рабочей области страницы",
+    "node_id": 3,
+    "error_type": "image",
+    "expected": null,
+    "found": null,
+    "node": "Span"
+  },
+]

@@ -8,6 +8,7 @@ from rules.structure import RuleHeadingFollowedByParagraph
 from rules.page_layout import RulePageMargins
 from rules.image import RuleImageCenterByMargins
 from rules.rule_line_spacing import RuleLineSpacing
+from rules.paragraph_indent import RuleParagraphIndent
 
 def process_pdf(input_bytes: bytes, draw_lines=False) -> bytes:
     errors: list[RuleError] = validate_pdf(input_bytes)
@@ -23,7 +24,8 @@ def validate_pdf(input_bytes: bytes) -> list[RuleError]:
         RuleHeadingFollowedByParagraph(),
         RulePageMargins(),
         RuleImageCenterByMargins(),
-        RuleLineSpacing()
+        RuleLineSpacing(),
+        RuleParagraphIndent()
     ]
 
     errors: list[RuleError] = []

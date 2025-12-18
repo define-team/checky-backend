@@ -15,6 +15,7 @@ class ErrorType:
     PAGE_NUMBER = "page_number"
     MISSING_IMAGE_DESCRIPTION = "missing_image_description"
     PARAGRAPH_JUSTIFIED = "paragraph_justified"
+    PARAGRAPH_INDENT = "paragraph_indent"
 
 @dataclass
 class RuleError:

@@ -1,6 +1,6 @@
-from dom import ImageObject, Document
+from dom import ImageObject, Document, Paragraph
 from errors import RuleError, ErrorType
-from typing import List
+from typing import List, Optional
 
 CM_TO_PT = 28.35
 

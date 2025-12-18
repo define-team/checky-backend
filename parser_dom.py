@@ -34,7 +34,6 @@ class PDFDOMParser:
         sorted_blocks = self.sort_blocks_by_y(dict_data)
 
         for block in sorted_blocks:
-            print("BLOCK TYPE:", block.get("type"), "BBOX:", block.get("bbox"))
             btype = block.get("type", 0)
             if btype == 0:
                 para = self._parse_text_block(block, link_rects)

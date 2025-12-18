@@ -13,9 +13,10 @@ class RulePageMargins:
     """
     def __init__(self,
                  top_mm=20, bottom_mm=20, left_mm=30, right_mm=20,
-                 tol_mm=1,
+                 tol_mm=1, right_toll_mm=2.5,
                  page_number_bottom_mm=20,
                  page_number_margin_mm=5):
+        self.right_toll = right_toll_mm
         self.top = top_mm
         self.bottom = bottom_mm
         self.left = left_mm
@@ -76,7 +77,7 @@ class RulePageMargins:
                         error_type=ErrorType.PAGE_MARGIN
                     ))
 
-                if right_mm + self.tol < self.right:
+                if right_mm + self.right_toll < self.right:
                     errors.append(RuleError(
                         message=f"Правое поле меньше ГОСТ: {right_mm:.1f} мм < {self.right} мм",
                         node=page,
@@ -168,24 +169,46 @@ class RulePageMargins:
         errors = []
         lines = paragraph.children
 
-        if len(lines) < 2:
+        if len(lines) < 4:
             return errors
 
-        tol = 5
-        lefts = [l.bbox[0] for l in lines]
-        rights = [l.bbox[2] for l in lines]
+        core_lines = lines[1:-1]
+        if len(core_lines) < 2:
+            return errors
+
+        lefts = [l.bbox[0] for l in core_lines]
+        rights = [l.bbox[2] for l in core_lines]
+        widths = [r - l for l, r in zip(lefts, rights)]
         centers = [(l + r) / 2 for l, r in zip(lefts, rights)]
 
-        full_lines = lines[:-1]
+        left_var = max(lefts) - min(lefts)
+        right_var = max(rights) - min(rights)
+        width_var = max(widths) - min(widths)
+        center_var = max(centers) - min(centers)
 
-        left_var = max(l.bbox[0] for l in full_lines) - min(l.bbox[0] for l in full_lines)
-        right_var = max(l.bbox[2] for l in full_lines) - min(l.bbox[2] for l in full_lines)
+        tol_left   = 4
+        tol_right  = 12
+        tol_width  = 10
+        tol_center = 6
 
-        is_justify = left_var <= tol and right_var <= tol
+        if (
+            left_var <= tol_left
+            and right_var <= tol_right
+            and width_var <= tol_width
+        ):
+            alignment = "justify"
+        elif center_var <= tol_center:
+            alignment = "center"
+        elif left_var <= tol_left:
+            alignment = "left"
+        elif right_var <= tol_right:
+            alignment = "right"
+        else:
+            alignment = "unknown"
 
-        if not is_justify:
+        if alignment != "justify":
             errors.append(RuleError(
-                message="Абзац не выровнен по ширине (ГОСТ)",
+                message=f"Абзац не выровнен по ширине (обнаружено: {alignment})",
                 node=paragraph,
                 node_id=paragraph.node_id,
                 error_type=ErrorType.PARAGRAPH_JUSTIFIED

@@ -1,0 +1,18 @@
+[
+  {
+    "message": "Неверный межстрочный интервал: ожидалось 1.5, найдено 1.19",
+    "node_id": 4,
+    "error_type": "spacing",
+    "expected": null,
+    "found": null,
+    "node": "Paragraph"
+  },
+  {
+    "message": "Неверный межстрочный интервал: ожидалось 1.5, найдено 1.19",
+    "node_id": 4,
+    "error_type": "spacing",
+    "expected": null,
+    "found": null,
+    "node": "Paragraph"
+  }
+]
