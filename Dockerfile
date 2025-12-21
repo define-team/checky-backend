@@ -12,6 +12,7 @@ RUN pip install --upgrade pip wheel setuptools && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY *.py ./
+COPY ./rules ./rules
 COPY ./static ./static
 
 EXPOSE 8000
