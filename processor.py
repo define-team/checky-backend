@@ -9,6 +9,7 @@ from rules.page_layout import RulePageMargins
 from rules.image import RuleImageCenterByMargins
 from rules.rule_line_spacing import RuleLineSpacing
 from rules.paragraph_indent import RuleParagraphIndent
+from rules.rule_table_layout import RuleTableLayout
 
 def process_pdf(input_bytes: bytes, draw_lines=False) -> bytes:
     errors: list[RuleError] = validate_pdf(input_bytes)
@@ -25,7 +26,8 @@ def validate_pdf(input_bytes: bytes) -> list[RuleError]:
         RulePageMargins(),
         RuleImageCenterByMargins(),
         RuleLineSpacing(),
-        RuleParagraphIndent()
+        RuleParagraphIndent(),
+        RuleTableLayout(),
     ]
 
     errors: list[RuleError] = []
