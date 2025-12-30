@@ -34,7 +34,7 @@ class RuleImageCenterByMargins:
 
                 if abs(img_center - work_center) > self.tol_pt:
                     errors.append(RuleError(
-                        message="Изображение не центрировано относительно рабочей области страницы",
+                        message="Изображение не центрировано",
                         node=node,
                         node_id=node.node_id,
                         error_type=ErrorType.IMAGE
@@ -44,7 +44,7 @@ class RuleImageCenterByMargins:
 
                 if caption is None:
                     errors.append(RuleError(
-                        message="У изображения отсутствует подпись (Рис. ...)",
+                        message="У изображения нет подписи (Рис. ...)",
                         node=node,
                         node_id=node.node_id,
                         error_type=ErrorType.IMAGE

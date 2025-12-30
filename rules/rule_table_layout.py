@@ -52,7 +52,7 @@ class RuleTableLayout:
 
         if abs(table_center - work_center) > self.tol_pt:
             errors.append(RuleError(
-                message="Таблица не центрирована относительно рабочей области страницы",
+                message="Таблица не центрирована",
                 node=table,
                 node_id=table.node_id,
                 error_type=ErrorType.TABLE_ALIGNMENT

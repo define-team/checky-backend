@@ -53,7 +53,7 @@ class RuleFontSize:
 
                 if self.font_name not in real_font:
                     local_errors.append(RuleError(
-                        message=f"Неверный шрифт: {real_font} → должен содержать '{self.font_name}'",
+                        message=f"Шрифт: {real_font} → должен быть '{self.font_name}'",
                         node=node,
                         node_id=node.node_id,
                         error_type=ErrorType.FONT
@@ -61,7 +61,7 @@ class RuleFontSize:
 
                 if not (self.font_size_from - self.size_tol <= node.size <= self.font_size_to + self.size_tol):
                     local_errors.append(RuleError(
-                        message=f"Неверный размер: {node.size} → допустимо {self.font_size_from}-{self.font_size_to}",
+                        message=f"Размер: {node.size} → допустимо {self.font_size_from}-{self.font_size_to}",
                         node=node,
                         node_id=node.node_id,
                         error_type=ErrorType.FONT_SIZE

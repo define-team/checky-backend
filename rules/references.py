@@ -36,7 +36,6 @@ class RuleReferencesSection:
             ))
             return errors
 
-        # берём все узлы после заголовка
         following = []
         node = ref_heading.next_sibling
         while node:

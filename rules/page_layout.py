@@ -3,6 +3,12 @@ from dom import Document, PageNumber, Paragraph, Line
 from errors import RuleError, ErrorType
 from typing import List
 
+JUSTIFY_TO_WORDS={
+    "justify": "по ширине",
+    "center": "по центру",
+    "left": "по левому краю",
+    "right": "по правому краю",
+}
 CM_TO_PT = 28.35
 PT_TO_MM = 10 / CM_TO_PT
 
@@ -130,7 +136,7 @@ class RulePageMargins:
             if abs(number_center_x - page_print_center_x) > tol:
                 errors.append(RuleError(
                     message=(
-                        "Номер страницы не центрирован по горизонтали с учётом полей: "
+                        "Номер страницы не центрирован: "
                         f"{number_center_x / CM_TO_PT:.1f} != {page_print_center_x / CM_TO_PT:.1f}"
                     ),
                     node=page_number_node,
