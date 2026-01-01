@@ -2,12 +2,19 @@ import statistics
 from dom import Document, PageNumber, Paragraph, Line
 from errors import RuleError, ErrorType
 from typing import List
+from dataclasses import dataclass
+
+@dataclass
+class AlignmentResult:
+    is_justify: bool
+    detected: str
+
 
 JUSTIFY_TO_WORDS={
-    "justify": "по ширине",
-    "center": "по центру",
-    "left": "по левому краю",
-    "right": "по правому краю",
+    "justify": "выравнивание по ширине",
+    "center": "выравнивание по центру",
+    "left": "выравнивание по левому краю",
+    "right": "выравнивание по правому краю",
 }
 CM_TO_PT = 28.35
 PT_TO_MM = 10 / CM_TO_PT
@@ -97,7 +104,7 @@ class RulePageMargins:
                     continue
 
                 if isinstance(node, Paragraph):
-                    errors.extend(self.check_paragraph_alignment(node))
+                    errors.extend(self.check_paragraph_alignment(node, page))
 
 
         return errors
@@ -171,53 +178,113 @@ class RulePageMargins:
 
         return errors
 
-    def check_paragraph_alignment(self, paragraph: Paragraph) -> List[RuleError]:
+
+
+    def check_paragraph_alignment(self, paragraph: Paragraph, page) -> List[RuleError]:
         errors = []
-        lines = paragraph.children
 
-        if len(lines) < 4:
+        lines = [l for l in paragraph.children if isinstance(l, Line) and l.bbox]
+        # print(len(lines))
+        # print("--------")
+        # if not lines:
+        #     return errors
+
+        page_left, _, page_right, _ = page.bbox
+        work_left  = page_left + self.left / 10 * CM_TO_PT
+        work_right = page_right - self.right / 10 * CM_TO_PT
+
+        if len(lines) == 1:
+            if is_visually_multiline(paragraph, lines[0], work_left, work_right):
+                errors.append(RuleError(
+                    message="Абзац не выровнен по ширине",
+                    node=paragraph,
+                    node_id=paragraph.node_id,
+                    error_type=ErrorType.PARAGRAPH_JUSTIFIED
+                ))
             return errors
-
-        core_lines = lines[1:-1]
-        if len(core_lines) < 2:
-            return errors
-
-        lefts = [l.bbox[0] for l in core_lines]
-        rights = [l.bbox[2] for l in core_lines]
-        widths = [r - l for l, r in zip(lefts, rights)]
-        centers = [(l + r) / 2 for l, r in zip(lefts, rights)]
-
-        left_var = max(lefts) - min(lefts)
-        right_var = max(rights) - min(rights)
-        width_var = max(widths) - min(widths)
-        center_var = max(centers) - min(centers)
-
-        tol_left   = 4
-        tol_right  = 12
-        tol_width  = 10
-        tol_center = 6
-
-        if (
-            left_var <= tol_left
-            and right_var <= tol_right
-            and width_var <= tol_width
-        ):
-            alignment = "justify"
-        elif center_var <= tol_center:
-            alignment = "center"
-        elif left_var <= tol_left:
-            alignment = "left"
-        elif right_var <= tol_right:
-            alignment = "right"
+        if len(lines) == 2:
+            lines_to_check = [lines[0]]
         else:
-            alignment = "unknown"
+            lines_to_check = lines[1:-1]
 
-        if alignment != "justify":
+        is_not_justify = detect_alignment(lines_to_check, work_left, work_right)
+
+        if is_not_justify:
             errors.append(RuleError(
-                message=f"Абзац не выровнен по ширине (обнаружено: {alignment})",
+                message="Абзац не выровнен по ширине",
                 node=paragraph,
                 node_id=paragraph.node_id,
                 error_type=ErrorType.PARAGRAPH_JUSTIFIED
             ))
 
         return errors
+
+
+
+
+
+
+
+def detect_alignment(
+    lines,
+    work_left,
+    work_right,
+    tol_left=4,
+    tol_right=6
+) -> bool:
+    """
+    True   НЕ justify (ошибка)
+    False  justify (ГОСТ выполнен)
+    """
+
+    lefts, rights = [], []
+
+    for line in lines:
+        l, _, r, _ = line.bbox
+        lefts.append(l)
+        rights.append(r)
+
+    if not lefts:
+        return False
+
+    left_var = max(lefts) - min(lefts)
+    right_gap = max(abs(work_right - r) for r in rights)
+    # print (f"LEFT VAR: {left_var}, RIGHT GAP: {right_gap}")
+
+    justify = (
+        left_var <= tol_left and
+        right_gap <= tol_right
+    )
+
+    if justify:
+        # print("JUSTIFY DETECTED")
+        return False
+    else:
+        # print("JUSTIFY NOT")
+        return True
+
+
+def is_collapsed_multiline_paragraph(paragraph, line, k=2.0):
+    """
+    True  PDF склеил много строк в одну
+    """
+    if not paragraph.bbox or not line.bbox:
+        return False
+
+    para_h = paragraph.bbox[3] - paragraph.bbox[1]
+    line_h = line.bbox[3] - line.bbox[1]
+
+    return para_h > k * line_h
+
+def is_visually_multiline(paragraph, line, work_left, work_right,
+                          h_ratio=2.0, w_ratio=0.7):
+    para_h = paragraph.bbox[3] - paragraph.bbox[1]
+    line_h = line.bbox[3] - line.bbox[1]
+
+    para_w = line.bbox[2] - line.bbox[0]
+    work_w = work_right - work_left
+
+    tall = para_h > h_ratio * line_h
+    wide = para_w > w_ratio * work_w
+
+    return tall and wide
