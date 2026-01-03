@@ -16,6 +16,7 @@ class ErrorType:
     MISSING_IMAGE_DESCRIPTION = "missing_image_description"
     PARAGRAPH_JUSTIFIED = "paragraph_justified"
     PARAGRAPH_INDENT = "paragraph_indent"
+    REFERENCES = "references"
 
 @dataclass
 class RuleError:

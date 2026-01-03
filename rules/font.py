@@ -2,6 +2,36 @@ from dom import Span, Document, Page
 from errors import RuleError, ErrorType
 from typing import List
 import fitz
+import re
+
+LIST_MARKER_RE = re.compile(
+    r"""
+    ^\s*(
+        [\-\–\—•·▪◦] |        # маркеры
+        \d+[.)] |             # 1.  1)
+        [a-zA-Zа-яА-Я][.)]    # a)  б)
+    )\s*$
+    """,
+    re.VERBOSE
+)
+
+def is_list_marker_span(span: Span) -> bool:
+    text = span.text.strip()
+    if not text:
+        return False
+    return bool(LIST_MARKER_RE.match(text))
+
+def is_symbol_font(span: Span, get_real_font_func) -> bool:
+    try:
+        font = get_real_font_func(span)
+    except Exception:
+        return False
+
+    if not font:
+        return False
+
+    font = font.lower()
+    return "symbol" in font
 
 
 def _int_to_rgb(color_int: int) -> tuple[float, float, float]:
@@ -47,10 +77,15 @@ class RuleFontSize:
 
         def check_node(node):
             if isinstance(node, Span):
+                if is_symbol_font(node, get_real_font):
+                    return
+                if is_list_marker_span(node):
+                    return
                 local_errors = []
 
                 real_font = get_real_font(node).replace(' ', '')
-
+                if self.font_name == "Symbol":
+                    pass
                 if self.font_name not in real_font:
                     local_errors.append(RuleError(
                         message=f"Шрифт: {real_font} → должен быть '{self.font_name}'",
@@ -61,7 +96,7 @@ class RuleFontSize:
 
                 if not (self.font_size_from - self.size_tol <= node.size <= self.font_size_to + self.size_tol):
                     local_errors.append(RuleError(
-                        message=f"Размер: {node.size} → допустимо {self.font_size_from}-{self.font_size_to}",
+                        message=f"Размер: {round(node.size,2)} → допустимо {self.font_size_from}-{self.font_size_to}",
                         node=node,
                         node_id=node.node_id,
                         error_type=ErrorType.FONT_SIZE
@@ -92,7 +127,10 @@ class RuleFontSize:
                         errors.extend(local_errors)
 
             for child in getattr(node, "children", []):
-                check_node(child)
+                try:
+                    check_node(child)
+                except Exception:
+                    continue
 
         check_node(document)
         return errors

@@ -21,7 +21,10 @@ class RuleLineSpacing:
         for page in document.pages:
             for node in page.children:
                 if isinstance(node, Paragraph):
-                    errors.extend(self.check_paragraph(node))
+                    try:
+                        errors.extend(self.check_paragraph(node))
+                    except Exception:
+                        continue
 
         return errors
 

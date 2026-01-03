@@ -10,6 +10,7 @@ from rules.image import RuleImageCenterByMargins
 from rules.rule_line_spacing import RuleLineSpacing
 from rules.paragraph_indent import RuleParagraphIndent
 from rules.rule_table_layout import RuleTableLayout
+from rules.references import RuleReferencesSection
 
 def process_pdf(input_bytes: bytes, draw_lines=False) -> bytes:
     errors: list[RuleError] = validate_pdf(input_bytes)
@@ -28,10 +29,15 @@ def validate_pdf(input_bytes: bytes) -> list[RuleError]:
         RuleLineSpacing(),
         RuleParagraphIndent(),
         RuleTableLayout(),
+        RuleReferencesSection(),
     ]
 
     errors: list[RuleError] = []
     for r in rules:
-        errors.extend(r.check(document))
+        try:
+            errors.extend(r.check(document))
+        except Exception as e:
+            # logging.error(f"Ошибка при применении правила {r.__class__.__name__}: {e}")
+            continue
 
     return errors

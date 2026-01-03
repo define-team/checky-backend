@@ -3,7 +3,7 @@ from fastapi.responses import StreamingResponse
 import io
 import urllib.parse
 from processor import process_pdf
-
+import traceback
 router = APIRouter()
 
 
@@ -51,6 +51,7 @@ async def download_pdf(file: UploadFile = File(...)):
     try:
         processed = process_pdf(file_bytes)
     except Exception as e:
+        traceback.print_exc()
         raise HTTPException(
             status_code=500,
             detail=f"Ошибка обработки PDF: {e}"

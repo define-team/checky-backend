@@ -27,8 +27,20 @@ class PDFDOMParser:
 
 
     def _parse_page_content(self, page, page_node: Page):
-        links = page.get_links()
-        link_rects = [(fitz.Rect(l["from"]), l["uri"]) for l in links]
+        try:
+            links = page.get_links()
+        except Exception:
+            links = []
+        link_rects = []
+        for l in links:
+            try:
+                if "from" in l:
+                    uri = l.get("uri") or l.get("dest") or l.get("page")
+                    if uri:
+                        link_rects.append((fitz.Rect(l["from"]), uri))
+            except Exception:
+                continue
+        # link_rects = [(fitz.Rect(l["from"]), l["uri"]) for l in links]
 
         dict_data = page.get_text("dict")["blocks"]
         sorted_blocks = self.sort_blocks_by_y(dict_data)
@@ -169,12 +181,25 @@ class PDFDOMParser:
                 i += 1
 
             if line_node.spans:
-                x0 = min(s.bbox[0] for s in line_node.children)
-                y0 = min(s.bbox[1] for s in line_node.children)
-                x1 = max(s.bbox[2] for s in line_node.children)
-                y1 = max(s.bbox[3] for s in line_node.children)
-                line_node.bbox = (x0, y0, x1, y1)
-
+                valid_children = []
+                for child in line_node.children:
+                    if hasattr(child, 'bbox') and child.bbox is not None and len(child.bbox) >= 4:
+                        valid_children.append(child)
+                if valid_children:
+                    x0 = min(s.bbox[0] for s in line_node.children)
+                    y0 = min(s.bbox[1] for s in line_node.children)
+                    x1 = max(s.bbox[2] for s in line_node.children)
+                    y1 = max(s.bbox[3] for s in line_node.children)
+                    line_node.bbox = (x0, y0, x1, y1)
+                else:
+                    para.children.remove(line_node)
+                    continue
+        valid_lines = []
+        for line in para.children:
+            if hasattr(line, 'bbox') and line.bbox is not None and len(line.bbox) >= 4:
+                valid_lines.append(line)
+        if not valid_lines:
+            return None
         x0 = min(line.bbox[0] for line in para.children)
         y0 = min(line.bbox[1] for line in para.children)
         x1 = max(line.bbox[2] for line in para.children)

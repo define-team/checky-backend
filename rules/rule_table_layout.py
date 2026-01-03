@@ -31,9 +31,11 @@ class RuleTableLayout:
             for node in page.children:
                 if not isinstance(node, Table):
                     continue
-
-                errors.extend(self._check_table_center(page, node))
-                errors.extend(self._check_table_caption(page, node))
+                try:
+                    errors.extend(self._check_table_center(page, node))
+                    errors.extend(self._check_table_caption(page, node))
+                except Exception:
+                    continue
 
         return errors
 

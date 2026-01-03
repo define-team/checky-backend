@@ -100,11 +100,17 @@ class RulePageMargins:
 
             for node in page.children:
                 if isinstance(node, PageNumber):
-                    errors.extend(self.check_page_number(page, node))
-                    continue
+                    try:
+                        errors.extend(self.check_page_number(page, node))
+                        continue
+                    except Exception:
+                        pass
 
                 if isinstance(node, Paragraph):
-                    errors.extend(self.check_paragraph_alignment(node, page))
+                    try:
+                        errors.extend(self.check_paragraph_alignment(node, page))
+                    except Exception:
+                        pass
 
 
         return errors
@@ -207,8 +213,10 @@ class RulePageMargins:
         else:
             lines_to_check = lines[1:-1]
 
-        is_not_justify = detect_alignment(lines_to_check, work_left, work_right)
-
+        bbox_not_justify = detect_alignment(lines_to_check, work_left, work_right)
+        space_justify = is_paragraph_justified_by_spacing(lines_to_check)
+        is_not_justify = bbox_not_justify and not space_justify
+        is_not_justify = False
         if is_not_justify:
             errors.append(RuleError(
                 message="Абзац не выровнен по ширине",
@@ -288,3 +296,45 @@ def is_visually_multiline(paragraph, line, work_left, work_right,
     wide = para_w > w_ratio * work_w
 
     return tall and wide
+
+def is_line_justified_by_spacing(line, ratio_threshold=1.8, min_gaps=2):
+    """
+    True  → строка визуально justify (растянутые пробелы)
+    False → нет
+    """
+    spans = getattr(line, "spans", [])
+    if len(spans) < min_gaps + 1:
+        return False
+
+    gaps = []
+    for i in range(len(spans) - 1):
+        gap = spans[i + 1].bbox[0] - spans[i].bbox[2]
+        if gap > 0:
+            gaps.append(gap)
+
+    if len(gaps) < min_gaps:
+        return False
+
+    return max(gaps) / min(gaps) >= ratio_threshold
+
+
+def is_paragraph_justified_by_spacing(lines, min_ratio=0.6):
+    """
+    True  → абзац justify по пробелам
+    False → нет
+    """
+    checked = 0
+    justified = 0
+
+    for line in lines:
+        if len(getattr(line, "spans", [])) < 3:
+            continue
+
+        checked += 1
+        if is_line_justified_by_spacing(line):
+            justified += 1
+
+    if checked == 0:
+        return False
+
+    return (justified / checked) >= min_ratio

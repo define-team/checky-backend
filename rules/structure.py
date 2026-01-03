@@ -32,8 +32,10 @@ class RuleHeadingFollowedByParagraph:
                         )
                         node.errors.append(error)
                         errors.append(error)
-
-                check_children(getattr(node, "children", []))
+                try:
+                    check_children(getattr(node, "children", []))
+                except Exception:
+                    continue
 
         check_children(document.children)
         return errors
