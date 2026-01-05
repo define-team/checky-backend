@@ -11,6 +11,9 @@ REFERENCE_TITLES = {
 
 REFERENCE_ITEM_RE = re.compile(r"^\s*(\[\d+]|\\d+[.)])\s+")
 
+def normalize_title(text: str) -> str:
+    return re.sub(r"[^\w\s]", "", text.lower()).strip()
+
 
 class RuleReferencesSection:
     def check(self, document: Document) -> List[RuleError]:
@@ -18,12 +21,12 @@ class RuleReferencesSection:
 
         headings = [
             node for node in document.walk()
-            if isinstance(node, Heading)
+            if isinstance(node, (Heading, Paragraph))
         ]
 
         ref_heading = None
         for h in headings:
-            if h.text.strip().lower() in REFERENCE_TITLES:
+            if normalize_title(node.text) in REFERENCE_TITLES:
                 ref_heading = h
                 break
 
@@ -38,7 +41,7 @@ class RuleReferencesSection:
 
         following = []
         node = ref_heading.next_sibling
-        while node:
+        while node and not isinstance(node, Heading):
             following.append(node)
             node = node.next_sibling
 

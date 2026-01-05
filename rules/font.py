@@ -15,6 +15,22 @@ LIST_MARKER_RE = re.compile(
     re.VERBOSE
 )
 
+def _is_blue(color_int: int) -> bool:
+    r, g, b = _int_to_rgb(color_int)
+
+    if b < 0.4:
+        return False
+
+    if b < g or b < r:
+        return False
+
+    if abs(r - g) < 0.05 and abs(g - b) < 0.05:
+        return False
+
+    return True
+
+
+
 def is_list_marker_span(span: Span) -> bool:
     text = span.text.strip()
     if not text:
@@ -106,15 +122,24 @@ class RuleFontSize:
                     color_val = getattr(node.orig, "get", lambda x, d=None: d)("color", None)
                 except Exception:
                     color_val = None
-
+                is_link = node.parent and node.parent.node_type == "link"
                 if color_val is not None:
-                    if not _is_black(color_val):
-                        local_errors.append(RuleError(
-                            message=f"Не чёрный цвет текста",
-                            node=node,
-                            node_id=node.node_id,
-                            error_type=ErrorType.FONT
-                        ))
+                    if is_link:
+                        if not _is_blue(color_val) or _is_black(color_val):
+                            local_errors.append(RuleError(
+                                message=f"Цвет ссылки должен быть синим",
+                                node=node,
+                                node_id=node.node_id,
+                                error_type=ErrorType.FONT
+                            ))
+                    else:
+                        if not _is_black(color_val):
+                            local_errors.append(RuleError(
+                                message=f"Не чёрный цвет текста",
+                                node=node,
+                                node_id=node.node_id,
+                                error_type=ErrorType.FONT
+                            ))
 
                 if local_errors:
                     target = node.parent
