@@ -189,10 +189,6 @@ class RulePageMargins:
         errors = []
 
         lines = [l for l in paragraph.children if isinstance(l, Line) and l.bbox]
-        # print(len(lines))
-        # print("--------")
-        # if not lines:
-        #     return errors
 
         page_left, _, page_right, _ = page.bbox
         work_left  = page_left + self.left / 10 * CM_TO_PT
@@ -256,7 +252,6 @@ def detect_alignment(
 
     left_var = max(lefts) - min(lefts)
     right_gap = max(abs(work_right - r) for r in rights)
-    # print (f"LEFT VAR: {left_var}, RIGHT GAP: {right_gap}")
 
     justify = (
         left_var <= tol_left and
@@ -264,10 +259,8 @@ def detect_alignment(
     )
 
     if justify:
-        # print("JUSTIFY DETECTED")
         return False
     else:
-        # print("JUSTIFY NOT")
         return True
 
 
