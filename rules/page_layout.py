@@ -149,8 +149,7 @@ class RulePageMargins:
             if abs(number_center_x - page_print_center_x) > tol:
                 errors.append(RuleError(
                     message=(
-                        "Номер страницы не центрирован: "
-                        f"{number_center_x / CM_TO_PT:.1f} != {page_print_center_x / CM_TO_PT:.1f}"
+                        "Номер страницы не центрирован "
                     ),
                     node=page_number_node,
                     node_id=page_number_node.node_id,
